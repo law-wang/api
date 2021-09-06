@@ -1,4 +1,4 @@
-from flask import render_template, request, redirect, url_for, jsonify, abort, g
+from flask import render_template, request, jsonify, abort, g
 from flask_cas import login_required
 from app import app, db, scraper, cas
 from app.models import User, Person, Key
@@ -8,7 +8,6 @@ from sqlalchemy import distinct
 
 import datetime
 import time
-import calendar
 
 
 with open('app/scraper/res/majors_clean.txt') as f:
@@ -22,12 +21,8 @@ def store_user():
             g.user = User.query.get(cas.username)
             timestamp = int(time.time())
             if not g.user:
-                # If this is the first user (probably local run), there's been no chance to
-                # run the scraper yet, so give them admin to prevent an instant 403.
-                is_first_user = User.query.count() == 0
                 g.user = User(id=cas.username,
-                              registered_on=timestamp,
-                              admin=is_first_user)
+                              registered_on=timestamp)
                 db.session.add(g.user)
             g.user.last_seen = timestamp
             g.person = Person.query.filter_by(netid=cas.username, school_code='YC').first()
@@ -92,8 +87,6 @@ def index():
     years.append('')
     leave = ['Yes', 'No']
     eli_whitney = ['Yes', 'No']
-    birth_months = {index + 1: name for index, name in enumerate(list(calendar.month_name)[1:])}
-    birth_days = list(range(1, 31 + 1))
     # SQLAlchemy returns lists of tuples, so we gotta convert to a list of items.
     # TODO: is there a SQL-based way to do this?
     """
@@ -103,8 +96,7 @@ def index():
     rooms = untuple(db.session.query(distinct(Person.room)).order_by(Person.room))
     """
     return render_template('index.html', colleges=colleges,
-                           years=years, leave=leave, eli_whitney=eli_whitney, majors=majors,
-                           birth_months=birth_months, birth_days=birth_days)
+                           years=years, leave=leave, eli_whitney=eli_whitney, majors=majors)
     """
                            building_codes=building_codes,
                            entryways=entryways, floors=floors, suites=suites, rooms=rooms)
@@ -119,7 +111,7 @@ def scrape():
     if request.method == 'GET':
         return render_template('scraper.html')
     payload = request.get_json()
-    scraper.scrape.apply_async(args=[payload['caches'], payload['face_book_cookie'], payload['people_search_session_cookie'], payload['csrf_token']])
+    scraper.scrape.apply_async(args=[payload['face_book_cookie'], payload['people_search_session_cookie'], payload['csrf_token']])
     return '', 200
 
 
@@ -135,15 +127,10 @@ def about():
     return render_template('about.html')
 
 
-@app.route('/faq')
-@login_required
-def faq():
-    return render_template('faq.html')
-
-
 @app.route('/hide_me')
+@login_required
 def hide_me():
-    return redirect(url_for('faq'))
+    return render_template('hide_me.html')
 
 
 @app.route('/keys', methods=['GET'])

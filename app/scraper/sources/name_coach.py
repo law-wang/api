@@ -15,9 +15,6 @@ class NameCoach(Source):
 
     PAGE_SIZE = 1000
 
-    def clean(self, people):
-        return people
-
     def scrape_range(self, current_people, begin, end):
         for index in range(begin, end):
             person = current_people[index]

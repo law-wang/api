@@ -40,11 +40,6 @@ class FaceBook(Source):
     RE_ACCESS_CODE = re.compile(r'[0-9]-[0-9]+')
     RE_PHONE = re.compile(r'[0-9]{3}-[0-9]{3}-[0-9]{4}')
 
-    MONTH_ABBREVIATIONS = (
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    )
-
     def get_html(self, cookie):
         filename = 'page.html'
         if not os.path.exists(filename):
@@ -103,10 +98,18 @@ class FaceBook(Source):
 
     def compare_years(self, page_key, people, emails):
         print(f'Comparing years from {page_key} store.')
-        with open(f'app/scraper/res/historical/{page_key}.json.fernet', 'rb') as f:
-            years = json.loads(self.fernet.decrypt(f.read()))
+        with open(f'app/scraper/res/{page_key}.html.fernet', 'rb') as f:
+            html = self.fernet.decrypt(f.read())
+        tree = self.get_tree(html)
+        containers = self.get_containers(tree)
 
-        for email, year in years.items():
+        for container in containers:
+            year = self.clean_year(container.find('div', {'class': 'student_year'}).text)
+            info = container.find_all('div', {'class': 'student_info'})
+            try:
+                email = info[1].find('a').text
+            except AttributeError:
+                continue
             if email in emails and not people[emails[email]].get('leave') and email in emails and year is not None and people[emails[email]]['year'] is not None:
                 people[emails[email]]['leave'] = (year < people[emails[email]]['year'])
                 print(email + ' is' + (' not' if not people[emails[email]]['leave'] else '') + ' taking a leave.')
@@ -151,12 +154,7 @@ class FaceBook(Source):
                     person['residence'] = room
                     result = RE_ROOM.search(room)
                     person['building_code'], person['entryway'], person['floor'], person['suite'], person['room'] = result.groups()
-                if self.RE_BIRTHDAY.match(trivia[-1]):
-                    birthday = trivia.pop()
-                    person['birthday'] = birthday
-                    birth_month, birth_day = birthday.split()
-                    person['birth_month'] = self.MONTH_ABBREVIATIONS.index(birth_month) + 1
-                    person['birth_day'] = int(birth_day)
+                person['birthday'] = trivia.pop() if self.RE_BIRTHDAY.match(trivia[-1]) else None
                 person['major'] = trivia.pop() if trivia[-1] in MAJORS else None
                 if person['major'] and person['major'] in MAJOR_FULL_NAMES:
                     person['major'] = MAJOR_FULL_NAMES[person['major']]
@@ -230,7 +228,7 @@ class FaceBook(Source):
             people.append(person)
 
         # Check leaves
-        for backup in ('pre2020', 'fall2020', 'spring2020'):
-            people = self.compare_years(backup, people, emails)
+        people = self.compare_years('pre2020', people, emails)
+        people = self.compare_years('fall2020', people, emails)
 
         self.new_records = people

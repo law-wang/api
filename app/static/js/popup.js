@@ -1,6 +1,6 @@
 function showPopup(icon, title, paragraphs) {
     let popup = document.createElement('div');
-    popup.className = 'popup';
+    popup.id = 'popup';
     let content = document.createElement('div');
     content.className = 'content';
     let header = document.createElement('h1');
@@ -14,15 +14,14 @@ function showPopup(icon, title, paragraphs) {
     let closeButton = document.createElement('button');
     closeButton.id = 'close_popup';
     closeButton.textContent = 'Dismiss warning';
-    closeButton.onclick = function() {
-        closePopup(popup);
-    }
+    closeButton.onclick = closePopup;
     content.appendChild(closeButton);
     popup.appendChild(content);
     document.body.appendChild(popup);
 }
 
-function closePopup(popup) {
+function closePopup() {
+    let popup = document.getElementById('popup');
     popup.parentElement.removeChild(popup);
 }
 
@@ -34,13 +33,7 @@ if (!localStorage.popupShown) {
     showPopup('flag', 'Note', paragraphs);
     localStorage.popupShown = true;
 }
-
-/*
-if (!localStorage.popupShownSearch) {
-    let paragraphs = [
-        'We are aware of issues with our search functionality and are working on a resolution. Thank you for your patience.'
-    ];
-    showPopup('search', 'Search Outage', paragraphs);
-    localStorage.popupShownSearch = true;
+if (!localStorage.departmentalMaintenancePopupShown) {
+    showPopup('exclamation-triangle', 'Maintenance', ['Our database is currently under maintenance. Some data may be missing. We are working to fix this issue. Sorry for the inconvenience.'])
+    localStorage.departmentalMaintenancePopupShown = true;
 }
-*/
